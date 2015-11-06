@@ -228,13 +228,60 @@ func (g *GoWSDL) resolveXSDExternals(schema *XSDSchema, url *url.URL) error {
 	return nil
 }
 
+type nsCache string
+
+func (self *nsCache) setNS(s string) string {
+	*self = nsCache(s)
+	return ""
+}
+
+func (self *nsCache) getNS() string {
+	return string(*self)
+}
+
 func (g *GoWSDL) genTypes() ([]byte, error) {
+	var c nsCache
+
 	funcMap := template.FuncMap{
-		"toGoType":             toGoType,
+		"toGoType": func(xsdType string) string {
+			// Handles name space, ie. xsd:string, xs:string
+			r := strings.Split(xsdType, ":")
+
+			t := r[0]
+
+			if len(r) == 2 {
+				t = r[1]
+			}
+
+			value := xsd2GoTypes[strings.ToLower(t)]
+
+			if value != "" {
+				return value
+			}
+
+			for _, s := range g.wsdl.Types.Schemas {
+				if s.TargetNamespace == string(c) {
+					for _, st := range s.SimpleType {
+						if st.Name == t && st.Restriction.Base != "" {
+							bta := strings.Split(st.Restriction.Base, ":")
+							bt := bta[0]
+							if len(bta) == 2 {
+								bt = bta[1]
+							}
+							return bt
+						}
+					}
+				}
+			}
+
+			return "*" + replaceReservedWords(makePublic(t))
+		},
 		"stripns":              stripns,
 		"replaceReservedWords": replaceReservedWords,
 		"makePublic":           makePublic,
 		"comment":              comment,
+		"get_ns":               c.getNS,
+		"set_ns":               c.setNS,
 	}
 
 	//TODO resolve element refs in place.
@@ -508,6 +555,7 @@ func comment(text string) string {
 	}
 
 	if hasComment {
+		return ""
 		return output
 	}
 	return ""

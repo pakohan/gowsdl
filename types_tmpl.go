@@ -30,9 +30,9 @@ var typesTmpl = `
 {{define "Attributes"}}
 	{{range .}}
 		{{if .Doc}} {{.Doc | comment}} {{end}} {{if not .Type}}
-			{{ .Name | makePublic}} {{toGoType .SimpleType.Restriction.Base}} ` + "`" + `xml:"{{.Name}},attr,omitempty"` + "`" + `
+			{{ .Name | makePublic}} {{toGoType .SimpleType.Restriction.Base}} ` + "`" + `xml:"{{get_ns}} {{.Name}},attr,omitempty"` + "`" + `
 		{{else}}
-			{{ .Name | makePublic}} {{toGoType .Type}} ` + "`" + `xml:"{{.Name}},attr,omitempty"` + "`" + `
+			{{ .Name | makePublic}} {{toGoType .Type}} ` + "`" + `xml:"{{get_ns}} {{.Name}},attr,omitempty"` + "`" + `
 		{{end}}
 	{{end}}
 {{end}}
@@ -56,20 +56,22 @@ var typesTmpl = `
 			{{template "Attributes" .Attributes}}
 		{{end}}
 	{{end}}
-	} ` + "`" + `xml:"{{.Name}},omitempty"` + "`" + `
+	} ` + "`" + `xml:"{{get_ns}} {{.Name}},omitempty"` + "`" + `
 {{end}}
 
 {{define "Elements"}}
-	{{range .}} {{if not .Type}} {{template "ComplexTypeInline" .}} {{else}} {{if .Doc}} {{.Doc | comment}} {{"\n"}} {{end}} {{replaceReservedWords .Name | makePublic}} {{if eq .MaxOccurs "unbounded"}}[]{{end}}{{.Type | toGoType}} ` + "`" + `xml:"{{.Name}},omitempty"` + "`" + ` {{end}}
+	{{range .}} {{if not .Type}} {{template "ComplexTypeInline" .}} {{else}} {{if .Doc}} {{.Doc | comment}} {{"\n"}} {{end}} {{replaceReservedWords .Name | makePublic}} {{if eq .MaxOccurs "unbounded"}}[]{{end}}{{.Type | toGoType}} ` + "`" + `xml:"{{get_ns}} {{.Name}},omitempty"` + "`" + ` {{end}}
 	{{end}}
 {{end}}
 
 {{range .Schemas}}
 	{{ $targetNamespace := .TargetNamespace }}
 
-	{{range .SimpleType}}
+	{{set_ns $targetNamespace}}
+
+	{{/*range .SimpleType}}
 		{{template "SimpleType" .}}
-	{{end}}
+	{{end*/}}
 
 	{{range .Elements}}
 		{{if not .Type}}
@@ -77,7 +79,7 @@ var typesTmpl = `
 			{{$name := .Name}}
 			{{with .ComplexType}}
 				type {{$name | replaceReservedWords | makePublic}} struct {
-					XMLName xml.Name ` + "`xml:\"{{$targetNamespace}} {{$name}}\"`" + `
+					// XMLName xml.Name ` + "`xml:\"{{$targetNamespace}} {{$name}}\"`" + `
 					{{if ne .ComplexContent.Extension.Base ""}}
 						{{template "ComplexContent" .ComplexContent}}
 					{{else if ne .SimpleContent.Extension.Base ""}}
@@ -98,7 +100,7 @@ var typesTmpl = `
 		{{/* ComplexTypeGlobal */}}
 		{{$name := replaceReservedWords .Name | makePublic}}
 		type {{$name}} struct {
-			XMLName xml.Name ` + "`xml:\"{{$targetNamespace}} {{.Name}}\"`" + `
+			// XMLName xml.Name ` + "`xml:\"{{$targetNamespace}} {{.Name}}\"`" + `
 			{{if ne .ComplexContent.Extension.Base ""}}
 				{{template "ComplexContent" .ComplexContent}}
 			{{else if ne .SimpleContent.Extension.Base ""}}
